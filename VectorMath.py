@@ -15,6 +15,13 @@ class Vector:
         sum.z = self.z + other.z
         return sum
 
+    def __sub__( self, other ):
+        diff = Vector()
+        diff.x = self.x - other.x
+        diff.y = self.y - other.y
+        diff.z = self.z - other.z
+        return diff
+
     def __mul__( self, other ):
         product = Vector()
         if isinstance( other, Vector ):
@@ -112,22 +119,35 @@ class Vector:
         self.y = int( self.y )
         self.z = int( self.z )
 
+    def ProjectOnto( self, other ):
+        scale = self.Dot( other )
+        projection = other * scale
+        return projection
+
+    def RejectFrom( self, other ):
+        projection = self.ProjectOnto( other )
+        rejection = self - projection
+        return rejection
+
 class LinearTransform:
-    def __init__( self, xAxis = Vector( 1.0, 0.0, 0.0 ), yAxis = Vector( 0.0, 1.0, 0.0 ), zAxis = Vector( 0.0, 0.0, 1.0 ) ):
-        self.xAxis = xAxis
-        self.yAxis = yAxis
-        self.zAxis = zAxis
+    def __init__( self, xAxis = None, yAxis = None, zAxis = None ):
+        self.xAxis = xAxis.Clone() if xAxis else Vector( 1.0, 0.0, 0.0 )
+        self.yAxis = yAxis.Clone() if yAxis else Vector( 0.0, 1.0, 0.0 )
+        self.zAxis = zAxis.Clone() if zAxis else Vector( 0.0, 0.0, 1.0 )
 
     def MakeRotation( self, axis, angle ):
         ca = math.cos( angle )
         sa = math.sin( angle )
         omca = 1.0 - ca
+
         self.xAxis.x = omca * axis.x * axis.x + ca
         self.xAxis.y = omca * axis.x * axis.y + axis.z * sa
         self.xAxis.z = omca * axis.x * axis.z - axis.y * sa
+
         self.yAxis.x = omca * axis.y * axis.x - axis.z * sa
         self.yAxis.y = omca * axis.y * axis.y + ca
         self.yAxis.z = omca * axis.y * axis.z + axis.x * sa
+
         self.zAxis.x = omca * axis.z * axis.x + axis.y * sa
         self.zAxis.y = omca * axis.z * axis.y - axis.x * sa
         self.zAxis.z = omca * axis.z * axis.z + ca
@@ -156,3 +176,9 @@ class LinearTransform:
             sum += self.zAxis * other.z
             return sum
         return None
+
+    def Orthonormalize( self ):
+        self.xAxis.Normalize()
+        self.yAxis.RejectFrom( self.xAxis )
+        self.yAxis.Normalize()
+        self.zAxis = self.xAxis.Cross( self.yAxis )

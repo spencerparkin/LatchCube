@@ -12,6 +12,8 @@ class Window( QtGui.QOpenGLWindow ):
         super().__init__( parent )
         self.cube = LatchCube()
         self.orientation = LinearTransform()
+        self.dragPos = None
+        self.dragging = False
 
     def initializeGL( self ):
         GL.glShadeModel( GL.GL_SMOOTH )
@@ -47,6 +49,18 @@ class Window( QtGui.QOpenGLWindow ):
                     cubie = self.cube.cubie_matrix[x][y][z]
                     self.RenderCubieQuads( cubie )
 
+        #quad_vertices = [
+        #    Vector( -1.0, -1.0, 0.0 ),
+        #    Vector( 1.0, -1.0, 0.0 ),
+        #    Vector( 1.0, 1.0, 0.0 ),
+        #    Vector( -1.0, 1.0, 0.0 )
+        #]
+
+        #GL.glColor3f( 1.0, 1.0, 1.0 )
+        #for vertex in quad_vertices:
+        #    vertex = self.orientation * vertex
+        #    GL.glVertex3f( vertex.x, vertex.y, vertex.z )
+
         GL.glEnd()
 
         GL.glFlush()
@@ -64,7 +78,9 @@ class Window( QtGui.QOpenGLWindow ):
             frame = LinearTransform()
             frame.MakeFrame( face.normal )
             for vertex in quad_vertices:
-                vertex = frame * vertex + center
+                # TODO: Some face normals appear to be wrong.
+                # TODO: Why do I not have a depth buffer working for me?
+                vertex = frame * vertex + center + face.normal * 0.5
                 vertex = self.orientation * vertex
                 GL.glVertex3f( vertex.x, vertex.y, vertex.z )
 
@@ -86,3 +102,31 @@ class Window( QtGui.QOpenGLWindow ):
 
     def resizeGL( self, width, height ):
         GL.glViewport( 0, 0, width, height )
+
+    def mousePressEvent( self, event ):
+        button = event.button()
+        if button == QtCore.Qt.LeftButton:
+            self.dragPos = event.pos()
+            self.dragging = True
+
+    def mouseMoveEvent( self, event ):
+        if self.dragging:
+            pos = event.pos()
+            dragVector = Vector()
+            dragVector.x = float( pos.x() - self.dragPos.x() )
+            dragVector.y = float( pos.y() - self.dragPos.y() )
+            self.dragPos = pos
+            scale = 0.05
+            xAngle = scale * dragVector.y
+            yAngle = scale * dragVector.x
+            xAxisRotation = LinearTransform()
+            yAxisRotation = LinearTransform()
+            xAxisRotation.MakeRotation( Vector( 1.0, 0.0, 0.0 ), xAngle )
+            yAxisRotation.MakeRotation( Vector( 0.0, 1.0, 0.0 ), yAngle )
+            self.orientation = xAxisRotation * self.orientation
+            self.orientation = yAxisRotation * self.orientation
+            self.orientation.Orthonormalize() # Do this just to deal with accumulated round-off error.
+            self.update()
+
+    def mouseReleaseEvent( self, event ):
+        self.dragging = False
