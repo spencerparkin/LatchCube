@@ -17,7 +17,6 @@ class LatchCubieFace:
         face = LatchCubieFace( self.color, self.normal, self.constraint_direction )
         return face
 
-
 class LatchCubie:
     def __init__( self, position ):
         self.position = position
@@ -40,7 +39,6 @@ class LatchCubie:
             if face.normal == normal:
                 return face
         return None
-
 
 class LatchCube:
     def __init__( self ):

@@ -36,6 +36,77 @@ class Vector:
             return False
         return True
 
+    def Clone( self ):
+        return Vector( self.x, self.y, self.z )
+
+    def Normalize( self ):
+        length = self.Length()
+        if length != 0.0:
+            self.Scale( 1.0 / length )
+
+    def Scale( self, scalar ):
+        self.x *= scalar
+        self.y *= scalar
+        self.z *= scalar
+
+    def Length( self ):
+        return math.sqrt( self.x * self.x + self.y * self.y + self.z * self.z )
+
+    def Dot( self, other ):
+        return self.x * other.x + self.y * other.y + self.z * other.z
+
+    def Cross( self, other ):
+        product = Vector()
+        product.x = self.y * other.z - self.z * other.y
+        product.y = self.z * other.x - self.x * other.z
+        product.z = self.x * other.y - self.y * other.x
+        return product
+
+    def LargestAbsComponent( self ):
+        absX = math.fabs( self.x )
+        absY = math.fabs( self.y )
+        absZ = math.fabs( self.z )
+        if absX > absY:
+            if absX > absZ:
+                return 'x'
+            else:
+                return 'z'
+        else:
+            if absY > absZ:
+                return 'y'
+            else:
+                return 'z'
+
+    def SmallestAbsComponent( self ):
+        absX = math.fabs( self.x )
+        absY = math.fabs( self.y )
+        absZ = math.fabs( self.z )
+        if absX < absY:
+            if absX < absZ:
+                return 'x'
+            else:
+                return 'z'
+        else:
+            if absY < absZ:
+                return 'y'
+            else:
+                return 'z'
+
+    def BestOrthogonalVector( self ):
+        ortho_vecs = [
+            Vector( 0.0, self.z, -self.y ),
+            Vector( self.z, 0.0, -self.x ),
+            Vector( self.y, -self.x, 0.0 ),
+        ]
+        best_vec = None
+        best_length = 0.0
+        for vec in ortho_vecs:
+            length = vec.Length()
+            if length > best_length:
+                best_length = length
+                best_vec = vec
+        return best_vec
+
     def RoundToNearestIntegerComponents( self ):
         self.x = int( self.x )
         self.y = int( self.y )
@@ -61,9 +132,23 @@ class LinearTransform:
         self.zAxis.y = omca * axis.z * axis.y - axis.x * sa
         self.zAxis.z = omca * axis.z * axis.z + ca
 
+    def MakeFrame( self, vec ):
+        self.zAxis = vec.Clone()
+        self.zAxis.Normalize()
+        self.yAxis = self.zAxis.BestOrthogonalVector()
+        self.yAxis.Normalize()
+        self.zAxis = self.yAxis.Cross( self.zAxis )
+
+    def Clone( self ):
+        return LinearTransform( self.xAxis.Clone(), self.yAxis.Clone(), self.zAxis.Clone() )
+
     def __mul__( self, other ):
         if isinstance( other, LinearTransform ):
-            pass
+            product = LinearTransform()
+            product.xAxis = self * other.xAxis
+            product.yAxis = self * other.yAxis
+            product.zAxis = self * other.zAxis
+            return product
         elif isinstance( other, Vector ):
             sum = Vector()
             sum += self.xAxis * other.x
