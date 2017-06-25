@@ -157,7 +157,7 @@ class LinearTransform:
         self.zAxis.Normalize()
         self.yAxis = self.zAxis.BestOrthogonalVector()
         self.yAxis.Normalize()
-        self.zAxis = self.yAxis.Cross( self.zAxis )
+        self.xAxis = self.yAxis.Cross( self.zAxis )
 
     def Clone( self ):
         return LinearTransform( self.xAxis.Clone(), self.yAxis.Clone(), self.zAxis.Clone() )

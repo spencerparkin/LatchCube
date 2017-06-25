@@ -74,12 +74,14 @@ class Window( QtGui.QOpenGLWindow ):
             Vector( -0.45, 0.45, 0.0 )
         ]
         for face in cubie.face_list:
+            # This check is nice, but I want to know how to get the Z-buffer working.
+            normal = self.orientation * face.normal
+            if normal.z < 0:
+                continue
             self.RenderColor( face.color )
             frame = LinearTransform()
             frame.MakeFrame( face.normal )
             for vertex in quad_vertices:
-                # TODO: Some face normals appear to be wrong.
-                # TODO: Why do I not have a depth buffer working for me?
                 vertex = frame * vertex + center + face.normal * 0.5
                 vertex = self.orientation * vertex
                 GL.glVertex3f( vertex.x, vertex.y, vertex.z )
@@ -116,7 +118,7 @@ class Window( QtGui.QOpenGLWindow ):
             dragVector.x = float( pos.x() - self.dragPos.x() )
             dragVector.y = float( pos.y() - self.dragPos.y() )
             self.dragPos = pos
-            scale = 0.05
+            scale = 0.01
             xAngle = scale * dragVector.y
             yAngle = scale * dragVector.x
             xAxisRotation = LinearTransform()
