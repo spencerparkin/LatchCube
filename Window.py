@@ -1,6 +1,6 @@
 # Window.py
 
-import sys
+import math
 
 from OpenGL import GL, GLU
 from PyQt5 import QtGui, QtCore, QtWidgets
@@ -12,6 +12,12 @@ class Window( QtGui.QOpenGLWindow ):
         super().__init__( parent )
         self.cube = LatchCube()
         self.orientation = LinearTransform()
+        self.animation_transform = LinearTransform()
+        self.animation_axis = None
+        self.animation_angle = 0.0
+        self.animation_timer = QtCore.QTimer()
+        self.animation_timer.start(1)
+        self.animation_timer.timeout.connect( self.OnAnimationTimer )
         self.dragPos = None
         self.dragging = False
 
@@ -21,6 +27,7 @@ class Window( QtGui.QOpenGLWindow ):
         GL.glClearColor( 0.7, 0.7, 0.7, 0.0 )
 
     def paintGL( self ):
+        # TODO: Get the Z-buffer working.
         GL.glClear( GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT )
 
         viewport = GL.glGetIntegerv( GL.GL_VIEWPORT )
@@ -49,18 +56,6 @@ class Window( QtGui.QOpenGLWindow ):
                     cubie = self.cube.cubie_matrix[x][y][z]
                     self.RenderCubieQuads( cubie )
 
-        #quad_vertices = [
-        #    Vector( -1.0, -1.0, 0.0 ),
-        #    Vector( 1.0, -1.0, 0.0 ),
-        #    Vector( 1.0, 1.0, 0.0 ),
-        #    Vector( -1.0, 1.0, 0.0 )
-        #]
-
-        #GL.glColor3f( 1.0, 1.0, 1.0 )
-        #for vertex in quad_vertices:
-        #    vertex = self.orientation * vertex
-        #    GL.glVertex3f( vertex.x, vertex.y, vertex.z )
-
         GL.glEnd()
 
         GL.glFlush()
@@ -74,8 +69,10 @@ class Window( QtGui.QOpenGLWindow ):
             Vector( -0.45, 0.45, 0.0 )
         ]
         for face in cubie.face_list:
-            # This check is nice, but I want to know how to get the Z-buffer working.
-            normal = self.orientation * face.normal
+            normal = face.normal
+            if cubie.animation_transform:
+                normal = cubie.animation_transform * normal
+            normal = self.orientation * normal
             if normal.z < 0:
                 continue
             self.RenderColor( face.color )
@@ -83,8 +80,11 @@ class Window( QtGui.QOpenGLWindow ):
             frame.MakeFrame( face.normal )
             for vertex in quad_vertices:
                 vertex = frame * vertex + center + face.normal * 0.5
+                if cubie.animation_transform:
+                    vertex = cubie.animation_transform * vertex
                 vertex = self.orientation * vertex
                 GL.glVertex3f( vertex.x, vertex.y, vertex.z )
+            # TODO: Render constraint arrows.
 
     def RenderColor( self, color ):
         if color == 'blue':
@@ -132,3 +132,62 @@ class Window( QtGui.QOpenGLWindow ):
 
     def mouseReleaseEvent( self, event ):
         self.dragging = False
+
+    def ClearAnimation( self ):
+        for i in range(3):
+            for j in range(3):
+                for k in range(3):
+                    self.cube.cubie_matrix[i][j][k].animation_transform = None
+
+    def wheelEvent( self, event ):
+        angleDelta = event.angleDelta().y()
+        steps = angleDelta / 120
+        self.animation_angle = math.pi / 2.0 * float( steps )
+        direction = 'cw'
+        if steps < 0:
+            steps = -steps
+            direction = 'ccw'
+        axis = self.FindFacingAxis()
+        if not axis:
+            return
+        self.ClearAnimation()
+        while steps > 0:
+            if not self.cube.RotateFace( axis, direction ):
+                return
+            steps -= 1
+        cubie_list = self.cube.CollectCubiesForAxis( axis )
+        for cubie in cubie_list:
+            cubie.animation_transform = self.animation_transform
+        self.animation_axis = axis
+        self.animation_transform.MakeRotation( self.animation_axis, self.animation_angle )
+        self.update()
+
+    def OnAnimationTimer( self ):
+        if math.fabs( self.animation_angle ) > 0.0:
+            animation_rate = math.pi / 128.0
+            if self.animation_angle > 0.0:
+                self.animation_angle -= animation_rate
+                if self.animation_angle < 0.0:
+                    self.animation_angle = 0.0
+            else:
+                self.animation_angle += animation_rate
+                if self.animation_angle > 0.0:
+                    self.animation_angle = 0.0
+            self.animation_transform.MakeRotation( self.animation_axis, self.animation_angle )
+            self.update()
+
+    def FindFacingAxis( self ):
+        best_axis = None
+        best_z = 0.0
+        for i in range(2):
+            for j in range(3):
+                axis = Vector()
+                c = 1.0 if i == 0 else -1.0
+                axis.x = c if j == 0 else 0.0
+                axis.y = c if j == 1 else 0.0
+                axis.z = c if j == 2 else 0.0
+                transformed_axis = self.orientation * axis
+                if transformed_axis.z > best_z:
+                    best_z = transformed_axis.z
+                    best_axis = axis
+        return best_axis

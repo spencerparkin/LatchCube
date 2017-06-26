@@ -115,9 +115,9 @@ class Vector:
         return best_vec
 
     def RoundToNearestIntegerComponents( self ):
-        self.x = int( self.x )
-        self.y = int( self.y )
-        self.z = int( self.z )
+        self.x = float( round( self.x ) )
+        self.y = float( round( self.y ) )
+        self.z = float( round( self.z ) )
 
     def ProjectOnto( self, other ):
         scale = self.Dot( other )
